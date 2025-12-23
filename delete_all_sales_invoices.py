@@ -19,6 +19,7 @@ def delete_all_sales_invoices_and_related():
     
     # Define target statuses
     target_statuses = [
+        "Draft",
         "Paid",
         "Partly Paid", 
         "Overdue",
@@ -90,7 +91,8 @@ def delete_related_documents(invoice_name):
         "Warranty Claim",
         "Sales Invoice Advance",
         "GL Entry",
-        "Stock Ledger Entry"
+        "Stock Ledger Entry",
+        "Transport Payment"
     ]
     
     for doctype in related_doctypes:
@@ -108,6 +110,35 @@ def delete_related_documents(invoice_name):
                     JOIN `tabJournal Entry Account` jea ON je.name = jea.parent
                     WHERE jea.reference_name = %s AND jea.reference_type = 'Sales Invoice'
                 """, invoice_name, as_dict=1)
+            elif doctype == "Sales Order":
+                # Find Sales Orders linked to this invoice
+                related_docs = frappe.db.sql("""
+                    SELECT DISTINCT so.name, so.docstatus 
+                    FROM `tabSales Order` so
+                    JOIN `tabSales Invoice Item` sii ON so.name = sii.sales_order
+                    WHERE sii.parent = %s
+                """, invoice_name, as_dict=1)
+            elif doctype == "GL Entry":
+                related_docs = frappe.get_all(doctype,
+                    filters={"voucher_no": invoice_name, "voucher_type": "Sales Invoice"},
+                    fields=["name", "docstatus"])
+            elif doctype == "Stock Ledger Entry":
+                related_docs = frappe.get_all(doctype,
+                    filters={"voucher_no": invoice_name, "voucher_type": "Sales Invoice"},
+                    fields=["name", "docstatus"])
+            elif doctype == "Transport Payment":
+                # Find Transport Payments linked to this invoice
+                related_docs = frappe.get_all(doctype,
+                    filters={"sales_invoice": invoice_name},
+                    fields=["name", "docstatus"])
+            elif doctype == "Delivery Note":
+                # Find Delivery Notes linked to this invoice through Delivery Note Items
+                related_docs = frappe.db.sql("""
+                    SELECT DISTINCT dn.name, dn.docstatus 
+                    FROM `tabDelivery Note` dn
+                    JOIN `tabDelivery Note Item` dni ON dn.name = dni.parent
+                    WHERE dni.against_sales_invoice = %s
+                """, invoice_name, as_dict=1)
             else:
                 # For other doctypes, check if they have against_sales_invoice field
                 if frappe.db.has_column(doctype, "against_sales_invoice"):
@@ -122,8 +153,14 @@ def delete_related_documents(invoice_name):
                 try:
                     if doc.docstatus == 1:  # Submitted
                         related_doc = frappe.get_doc(doctype, doc.name)
-                        related_doc.cancel()
-                    frappe.delete_doc(doctype, doc.name, force=1)
+                        if doctype == "GL Entry" or doctype == "Stock Ledger Entry":
+                            # These don't need cancellation, just delete
+                            frappe.delete_doc(doctype, doc.name, force=1)
+                        else:
+                            related_doc.cancel()
+                            frappe.delete_doc(doctype, doc.name, force=1)
+                    else:
+                        frappe.delete_doc(doctype, doc.name, force=1)
                     print(f"  ✓ Deleted related {doctype}: {doc.name}")
                 except Exception as e:
                     print(f"  ✗ Error deleting related {doctype} {doc.name}: {str(e)}")
