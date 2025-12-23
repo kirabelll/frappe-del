@@ -159,11 +159,11 @@ def delete_related_documents(invoice_name):
                         related_doc = frappe.get_doc(doctype, doc.name)
                         
                         # Special handling for documents that don't support cancellation
-                        if doctype in ["GL Entry", "Stock Ledger Entry"]:
-                            # These don't need cancellation, just delete directly
+                        if doctype == "Stock Ledger Entry":
+                            # Stock Ledger Entry doesn't need cancellation, just delete directly
                             frappe.delete_doc(doctype, doc.name, force=1)
                         else:
-                            # Cancel first, then delete
+                            # Cancel first, then delete (including GL Entry)
                             related_doc.cancel()
                             print(f"    ✓ Cancelled related {doctype}: {doc.name}")
                             frappe.delete_doc(doctype, doc.name, force=1)
