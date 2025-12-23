@@ -154,16 +154,23 @@ def delete_related_documents(invoice_name):
             # Delete found related documents
             for doc in related_docs:
                 try:
-                    if doc.docstatus == 1:  # Submitted
+                    # Always cancel first if submitted, then delete
+                    if doc.docstatus == 1:  # Submitted - needs cancellation first
                         related_doc = frappe.get_doc(doctype, doc.name)
-                        if doctype == "GL Entry" or doctype == "Stock Ledger Entry":
-                            # These don't need cancellation, just delete
+                        
+                        # Special handling for documents that don't support cancellation
+                        if doctype in ["GL Entry", "Stock Ledger Entry"]:
+                            # These don't need cancellation, just delete directly
                             frappe.delete_doc(doctype, doc.name, force=1)
                         else:
+                            # Cancel first, then delete
                             related_doc.cancel()
+                            print(f"    ✓ Cancelled related {doctype}: {doc.name}")
                             frappe.delete_doc(doctype, doc.name, force=1)
                     else:
+                        # Draft or already cancelled - delete directly
                         frappe.delete_doc(doctype, doc.name, force=1)
+                    
                     print(f"  ✓ Deleted related {doctype}: {doc.name}")
                 except Exception as e:
                     print(f"  ✗ Error deleting related {doctype} {doc.name}: {str(e)}")
