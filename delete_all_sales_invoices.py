@@ -202,13 +202,6 @@ def cleanup_orphaned_records():
 
 
 if __name__ == "__main__":
-    # Safety check
-    confirm = input("WARNING: This will delete sales invoices with specific statuses and related documents. Type 'DELETE' to confirm: ")
-    
-    if confirm == "DELETE":
-        # Proceed with deletion
-        delete_all_sales_invoices_and_related()
-        
-        print("\n🎉 Sales invoices with target statuses and related documents have been deleted!")
-    else:
-        print("Operation cancelled for safety.")
+    # Run the deletion function directly
+    delete_all_sales_invoices_and_related()
+    print("\n🎉 Sales invoices with target statuses and related documents have been deleted!")
