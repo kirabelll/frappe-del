@@ -48,18 +48,21 @@ def delete_all_sales_invoices_and_related():
             # Delete related documents first
             delete_related_documents(invoice_name)
             
-            # Handle different statuses
-            if invoice.docstatus == 1:  # Submitted
-                # Cancel first, then delete
-                doc = frappe.get_doc("Sales Invoice", invoice_name)
+            # Always cancel first, then delete
+            doc = frappe.get_doc("Sales Invoice", invoice_name)
+            
+            # Cancel if not already cancelled
+            if invoice.docstatus == 1:  # Submitted - needs cancellation
                 doc.cancel()
-                frappe.delete_doc("Sales Invoice", invoice_name, force=1)
-            elif invoice.docstatus == 2:  # Cancelled
-                # Direct delete
-                frappe.delete_doc("Sales Invoice", invoice_name, force=1)
-            else:  # Draft
-                # Direct delete
-                frappe.delete_doc("Sales Invoice", invoice_name, force=1)
+                print(f"  ✓ Cancelled: {invoice_name}")
+            elif invoice.docstatus == 0:  # Draft - cancel anyway for consistency
+                # For draft documents, we can submit then cancel, or just delete
+                # Let's just delete drafts directly since they don't need cancellation
+                pass
+            # docstatus == 2 means already cancelled
+            
+            # Now delete the document
+            frappe.delete_doc("Sales Invoice", invoice_name, force=1)
             
             deleted_count += 1
             print(f"✓ Deleted: {invoice_name} (Status: {invoice.status})")
