@@ -15,7 +15,7 @@ read -p "Choose method (1-3): " method
 case $method in
     1)
         echo "Running Python deletion script..."
-        bench --site [YOUR_SITE_NAME] console < delete_all_sales_invoices.py
+        bench --site frappe.com console < delete_all_sales_invoices.py
         ;;
     2)
         echo "WARNING: This will directly modify the database!"
@@ -39,7 +39,7 @@ case $method in
         echo "import frappe"
         echo "exec(open('delete_all_sales_invoices.py').read())"
         echo ""
-        bench --site [YOUR_SITE_NAME] console
+        bench --site frappe.com console
         ;;
     *)
         echo "Invalid option"
