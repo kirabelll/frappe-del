@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Complete Sales Invoice Deletion Script for Frappe
-Removes ALL sales invoices regardless of status and related documents
+Targeted Sales Invoice Deletion Script for Frappe
+Removes sales invoices with specific statuses and related documents
+Target statuses: Paid, Partly Paid, Overdue, Cancelled, Return, Credit Note Issued
 """
 
 import frappe
@@ -9,14 +10,29 @@ from frappe import _
 
 def delete_all_sales_invoices_and_related():
     """
-    Delete ALL sales invoices and related documents regardless of status
+    Delete sales invoices with specific statuses and related documents
+    Target statuses: Paid, Partly Paid, Overdue, Cancelled, Return, Credit Note Issued
     WARNING: This is irreversible - backup your database first!
     """
     
-    print("Starting comprehensive sales invoice deletion...")
+    print("Starting targeted sales invoice deletion...")
     
-    # Get all sales invoices
-    all_invoices = frappe.get_all("Sales Invoice", fields=["name", "docstatus", "outstanding_amount"])
+    # Define target statuses
+    target_statuses = [
+        "Paid",
+        "Partly Paid", 
+        "Overdue",
+        "Cancelled",
+        "Return",
+        "Credit Note Issued"
+    ]
+    
+    print(f"Target statuses: {', '.join(target_statuses)}")
+    
+    # Get sales invoices with specific statuses
+    all_invoices = frappe.get_all("Sales Invoice", 
+        filters={"status": ["in", target_statuses]},
+        fields=["name", "docstatus", "outstanding_amount", "status"])
     
     print(f"Found {len(all_invoices)} sales invoices to process")
     
@@ -26,7 +42,7 @@ def delete_all_sales_invoices_and_related():
     for invoice in all_invoices:
         try:
             invoice_name = invoice.name
-            print(f"Processing: {invoice_name} (Status: {invoice.docstatus})")
+            print(f"Processing: {invoice_name} (Status: {invoice.docstatus}, Invoice Status: {invoice.status})")
             
             # Delete related documents first
             delete_related_documents(invoice_name)
@@ -45,7 +61,7 @@ def delete_all_sales_invoices_and_related():
                 frappe.delete_doc("Sales Invoice", invoice_name, force=1)
             
             deleted_count += 1
-            print(f"✓ Deleted: {invoice_name}")
+            print(f"✓ Deleted: {invoice_name} (Status: {invoice.status})")
             
         except Exception as e:
             error_count += 1
@@ -71,7 +87,10 @@ def delete_related_documents(invoice_name):
         "Sales Order",
         "Packing Slip",
         "Installation Note",
-        "Warranty Claim"
+        "Warranty Claim",
+        "Sales Invoice Advance",
+        "GL Entry",
+        "Stock Ledger Entry"
     ]
     
     for doctype in related_doctypes:
@@ -143,32 +162,16 @@ def cleanup_orphaned_records():
     
     print("✓ Orphaned records cleaned up")
 
-def backup_before_deletion():
-    """Create a backup before deletion"""
-    import os
-    import datetime
-    
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_file = f"sales_invoice_backup_{timestamp}.sql"
-    
-    print(f"Creating backup: {backup_file}")
-    
-    # Export sales invoice data
-    os.system(f"bench --site {frappe.local.site} backup --with-files")
-    
-    print("✓ Backup created")
+
 
 if __name__ == "__main__":
     # Safety check
-    confirm = input("WARNING: This will delete ALL sales invoices and related documents. Type 'DELETE ALL' to confirm: ")
+    confirm = input("WARNING: This will delete sales invoices with specific statuses and related documents. Type 'DELETE' to confirm: ")
     
-    if confirm == "DELETE ALL":
-        # Create backup first
-        backup_before_deletion()
-        
+    if confirm == "DELETE":
         # Proceed with deletion
         delete_all_sales_invoices_and_related()
         
-        print("\n🎉 All sales invoices and related documents have been deleted!")
+        print("\n🎉 Sales invoices with target statuses and related documents have been deleted!")
     else:
         print("Operation cancelled for safety.")
